@@ -29,7 +29,7 @@ class ROB(cmd_t: RoCCCommand, nEntries: Int, local_addr_t: LocalAddr, block_rows
 
     val completed = Flipped(Valid(UInt(log2Up(nEntries).W)))
 
-    val issue = new Bundle {
+    val issue = new Bundle { //issue instructions to controller
       val ld = new ROBIssue(cmd_t, nEntries)
       val st = new ROBIssue(cmd_t, nEntries)
       val ex = new ROBIssue(cmd_t, nEntries)
@@ -108,12 +108,12 @@ class ROB(cmd_t: RoCCCommand, nEntries: Int, local_addr_t: LocalAddr, block_rows
     new_entry.dst.bits.len := Mux(funct_is_compute, 1.U, cmd.rs2(63, spAddrBits)) // TODO magic number
 
     val is_load = (funct === LOAD_CMD) || (funct === CONFIG_CMD && config_cmd_type === CONFIG_LOAD)
-    val is_store = (funct === STORE_CMD) || (funct === CONFIG_CMD && config_cmd_type === CONFIG_STORE)
+    val is_store = (funct === STORE_CMD) || (funct === CONFIG_CMD && config_cmd_type === CONFIG_STORE) //Seah: config_mvout?
     val is_ex = funct_is_compute || (funct === CONFIG_CMD && config_cmd_type === CONFIG_EX)
 
     new_entry.q := Mux1H(Seq(
       is_load -> ldq,
-      is_store -> stq,
+      is_store -> stq, //Seah: for mvout & config_mvout?
       is_ex -> exq
     ))
 

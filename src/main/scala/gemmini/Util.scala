@@ -70,6 +70,11 @@ object Util {
     Mux(u1 < u2, u1, u2)
   }
 
+  def maxOf[T <: Data](d1: T, d2: T)(implicit ev: Arithmetic[T]): T = {
+    import ev._
+    Mux(d1 > d2, d1, d2)
+  }
+
   // An undirectioned Valid bundle
   class UDValid[T <: Data](t: T) extends Bundle {
     val valid = Bool()

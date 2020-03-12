@@ -40,6 +40,11 @@ class LoadController[T <: Data](config: GemminiArrayConfig[T], coreMaxAddrBits: 
   val localaddr_plus_row_counter = localaddr + row_counter
 
   io.busy := cmd.valid
+  //Seah: count moving in instruction time
+  val (mvin_time, mvin_time_wrap) = Counter(io.busy, 1024)
+  val mvin_counter = WireInit(mvin_time)
+  dontTouch(mvin_counter)
+
 
   val DoConfig = cmd.bits.cmd.inst.funct === CONFIG_CMD
   val DoLoad = !DoConfig // TODO change this if more commands are added

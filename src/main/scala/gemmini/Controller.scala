@@ -31,10 +31,10 @@ class LocalAddr(sp_banks: Int, sp_bank_entries: Int, acc_rows: Int) extends Bund
   val is_acc_addr = Bool()
   val accumulate = Bool()
   val garbage = UInt((localAddrBits - maxAddrBits - 2).W)
-  val data = UInt(maxAddrBits.W)
+  val data = UInt(maxAddrBits.W) // address user put in SRAM
 
-  def sp_bank(dummy: Int = 0) = data(spAddrBits - 1, spBankRowBits)
-  def sp_row(dummy: Int = 0) = data(spBankRowBits - 1, 0)
+  def sp_bank(dummy: Int = 0) = data(spAddrBits - 1, spBankRowBits) //top two bits are bank
+  def sp_row(dummy: Int = 0) = data(spBankRowBits - 1, 0) //last of bits is row
   def acc_row(dummy: Int = 0) = data(accAddrBits-1, 0)
 
   def full_sp_addr(dummy: Int = 0) = data(spAddrBits-1, 0)

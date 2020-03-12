@@ -1,4 +1,4 @@
-// A simple type class for Chisel datatypes that can add and multiply. To add your own type, simply create your own:
+// A simple type class for Chisel datatypes that can add and multiply. To add your own type, simply creat your own:
 //     implicit MyTypeArithmetic extends Arithmetic[MyType] { ... }
 
 package gemmini
@@ -16,6 +16,7 @@ abstract class ArithmeticOps[T <: Data](self: T) {
   def mac(m1: T, m2: T): T // Returns (m1 * m2 + self)
   def +(t: T): T
   def >>(u: UInt): T // This is a rounding shift! Rounds away from 0
+  def >(t: T): Bool
   def withWidthOf(t: T): T
   def clippedToWidthOf(t: T): T // Like "withWidthOf", except that it saturates
   def relu: T
@@ -30,17 +31,10 @@ object Arithmetic {
       override def +(t: UInt) = self + t
 
       override def >>(u: UInt) = {
-        // The equation we use can be found here: https://riscv.github.io/documents/riscv-v-spec/#_vector_fixed_point_rounding_mode_register_vxrm
-
-        // TODO Do we need to explicitly handle the cases where "u" is a small number (like 0)? What is the default behavior here?
-        val point_five = Mux(u === 0.U, 0.U, self(u - 1.U))
-        val zeros = Mux(u <= 1.U, 0.U, self.asUInt() & ((1.U << (u - 1.U)).asUInt() - 1.U)) =/= 0.U
-        val ones_digit = self(u)
-
-        val r = point_five & (zeros | ones_digit)
-
-        (self >> u).asUInt() + r
+        Mux(u === 0.U, self, (self + (1.U << (u-1.U)).asUInt()) >> u).asUInt() // TODO is the mux necessary here? What is (1 << (0.U-1.U))?
       }
+
+      override def >(t: UInt): Bool = self > t
 
       override def withWidthOf(t: UInt) = self(t.getWidth-1, 0)
 
@@ -66,17 +60,15 @@ object Arithmetic {
       override def +(t: SInt) = self + t
 
       override def >>(u: UInt) = {
-        // The equation we use can be found here: https://riscv.github.io/documents/riscv-v-spec/#_vector_fixed_point_rounding_mode_register_vxrm
-
-        // TODO Do we need to explicitly handle the cases where "u" is a small number (like 0)? What is the default behavior here?
-        val point_five = Mux(u === 0.U, 0.U, self(u - 1.U))
-        val zeros = Mux(u <= 1.U, 0.U, self.asUInt() & ((1.U << (u - 1.U)).asUInt() - 1.U)) =/= 0.U
-        val ones_digit = self(u)
-
-        val r = (point_five & (zeros | ones_digit)).asBool()
-
-        (self >> u).asSInt() + Mux(r, 1.S, 0.S)
+        val pos_offset = (1.U << (u-1.U)).asUInt()
+        val neg_offset = ~((-1).S << (u-1.U))
+        val pos_sum = self + pos_offset.asSInt()
+        val neg_sum = self + neg_offset.asSInt()
+        Mux(u === 0.U, self,
+            (Mux(self >= 0.S, pos_sum, neg_sum) >> u).asSInt)
       }
+
+      override def >(t: SInt): Bool = self > t
 
       override def withWidthOf(t: SInt) = self(t.getWidth-1, 0).asSInt()
 
@@ -194,6 +186,8 @@ object Arithmetic {
         result
         */
       }
+
+      override def >(t: Float): Bool = ???
 
       override def withWidthOf(t: Float): Float = {
         val self_rec = recFNFromFN(self.expWidth, self.sigWidth, self.bits)

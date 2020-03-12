@@ -63,6 +63,11 @@ class StreamReader(nXacts: Int, beatBits: Int, maxBytes: Int, spadWidth: Int, ac
     xactTracker.io.peek.xactid := RegEnableThru(core.module.io.beatData.bits.xactid, beatPacker.io.req.fire())
     xactTracker.io.peek.pop := beatPacker.io.in.fire() && core.module.io.beatData.bits.last
 
+    //Seah: counter implementation for Scratchpad -> DRAM
+    val (dtos_count, dtoS_wrap_out) = Counter(io.busy, 1024)
+    val dtos_counter = WireInit(dtos_count)
+    dontTouch(dtos_counter)
+
 
     core.module.io.beatData.ready := beatPacker.io.in.ready
     beatPacker.io.req.valid := core.module.io.beatData.valid
@@ -77,6 +82,8 @@ class StreamReader(nXacts: Int, beatBits: Int, maxBytes: Int, spadWidth: Int, ac
     io.resp.bits.addr := beatPacker.io.out.bits.addr
     io.resp.bits.mask := beatPacker.io.out.bits.mask
     io.resp.bits.is_acc := beatPacker.io.out.bits.is_acc
+    // io.resp.bits.cmd_id := xactTracker.io.peek.entry.cmd_id
+    // io.resp.bits.bytes_read := xactTracker.io.peek.entry.bytes_to_read
     io.resp.bits.cmd_id := RegEnable(xactTracker.io.peek.entry.cmd_id, beatPacker.io.req.fire())
     io.resp.bits.bytes_read := RegEnable(xactTracker.io.peek.entry.bytes_to_read, beatPacker.io.req.fire())
     io.resp.bits.last := beatPacker.io.out.bits.last
@@ -187,6 +194,14 @@ class StreamReaderCore(nXacts: Int, beatBits: Int, maxBytes: Int, spadWidth: Int
 
 
     // Firing off TileLink read requests and allocating space inside the reservation buffer for them
+    /*
+    val get = edge.Get(
+      fromSource = io.reserve.xactid,
+      toAddress = paddr,
+      lgSize = lg_send_size
+    )._2
+    */
+
     val get = edge.Get(
       fromSource = io.reserve.xactid,
       toAddress = read_paddr,
@@ -195,6 +210,15 @@ class StreamReaderCore(nXacts: Int, beatBits: Int, maxBytes: Int, spadWidth: Int
 
     tl.a.valid := state === s_req_new_block && io.reserve.ready
     tl.a.bits := get
+
+    /*
+    io.reserve.valid := state === s_req_new_block && tl.a.ready // TODO decouple "reserve.valid" from "tl.a.ready"
+    io.reserve.entry.shift := 0.U // TODO
+    io.reserve.entry.is_acc := req.is_acc
+    io.reserve.entry.lg_len_req := lg_send_size
+    io.reserve.entry.bytes_to_read := send_size
+    io.reserve.entry.cmd_id := req.cmd_id
+    */
 
     io.reserve.valid := state === s_req_new_block && tl.a.ready // TODO decouple "reserve.valid" from "tl.a.ready"
     io.reserve.entry.shift := read_shift
@@ -238,6 +262,7 @@ class StreamReaderCore(nXacts: Int, beatBits: Int, maxBytes: Int, spadWidth: Int
     io.beatData.bits.last := edge.last(tl.d)
     // TODO the size data is already returned from TileLink, so there's no need for us to store it in the XactTracker ourselves
 
+
     // Accepting requests to kick-start the state machine
     when (io.req.fire()) {
       req := io.req.bits
@@ -254,10 +279,15 @@ class StreamWriteRequest(val dataWidth: Int)(implicit p: Parameters) extends Cor
   val vaddr = UInt(coreMaxAddrBits.W)
   val data = UInt(dataWidth.W)
   val status = new MStatus
+
+  val pool_en = Bool()
+  val store_en = Bool()
 }
 
-class StreamWriter(nXacts: Int, beatBits: Int, maxBytes: Int, dataWidth: Int, aligned_to: Int)
+//streamwriter: actually write at the DMA
+class StreamWriter[T <: Data: Arithmetic](nXacts: Int, beatBits: Int, maxBytes: Int, dataWidth: Int, aligned_to: Int, input_type: T)
                   (implicit p: Parameters) extends LazyModule {
+
   val node = TLHelper.makeClientNode(
     name = "stream-writer", sourceId = IdRange(0, nXacts))
 
@@ -275,7 +305,7 @@ class StreamWriter(nXacts: Int, beatBits: Int, maxBytes: Int, dataWidth: Int, al
     val io = IO(new Bundle {
       val req = Flipped(Decoupled(new StreamWriteRequest(dataWidth)))
       val tlb = new FrontendTLBIO
-      val busy = Output(Bool())
+      val busy = Output(Bool()) //waiting for TileLink write request to finish, only when the DMA receives the request (DRAM->scratchpad)
       val flush = Input(Bool())
     })
 
@@ -284,6 +314,11 @@ class StreamWriter(nXacts: Int, beatBits: Int, maxBytes: Int, dataWidth: Int, al
     val state = RegInit(s_idle)
 
     val req = Reg(new StreamWriteRequest(dataWidth))
+
+    //Seah: counter implementation for DRAM -> Scratchpad
+    val (stod_count, stod_wrap_out) = Counter(io.busy, 1024)
+    val stod_counter = WireInit(stod_count)
+    dontTouch(stod_counter)
 
     val vpn = req.vaddr(coreMaxAddrBits-1, pgIdxBits)
 
@@ -443,14 +478,26 @@ class StreamWriter(nXacts: Int, beatBits: Int, maxBytes: Int, dataWidth: Int, al
       }
     }
 
+
     // Accepting requests to kick-start the state machine
     when (io.req.fire()) {
       req := io.req.bits
+      when(req.pool_en){
+        val block_size = dataWidth / input_type.getWidth
+
+        val v1 = io.req.bits.data.asTypeOf(Vec(block_size, input_type))
+        val v2 = req.data.asTypeOf(Vec(block_size, input_type))
+        val m = v1.zip(v2)
+        val pool_result = VecInit(m.map{case (x, y) => maxOf(x,y)} )
+        req.data := pool_result.asUInt
+      }
       bytesSent := 0.U
 
       val vpn_already_translated = last_vpn_translated_valid &&
         last_vpn_translated === io.req.bits.vaddr(coreMaxAddrBits-1, pgIdxBits)
-      state := Mux(vpn_already_translated, s_writing_new_block, s_translate_req)
+      when(io.req.bits.store_en) {
+        state := Mux(vpn_already_translated, s_writing_new_block, s_translate_req)
+      }.otherwise{state:=s_idle}
     }
   }
 }

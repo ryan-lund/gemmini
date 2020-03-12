@@ -34,6 +34,8 @@ class ScratchpadMemWriteRequest(local_addr_t: LocalAddr)
   val cmd_id = UInt(8.W) // TODO don't use a magic number here
 
   val status = new MStatus
+  val pool_first_row = Bool()
+  val store_en = Bool()
 
   override def cloneType: this.type = new ScratchpadMemWriteRequest(local_addr_t).asInstanceOf[this.type]
 }
@@ -151,7 +153,7 @@ class Scratchpad[T <: Data: Arithmetic](
 
   val reader = LazyModule(new StreamReader(max_in_flight_reqs, dataBits, maxBytes, spad_w, acc_w, aligned_to,
     sp_banks * sp_bank_entries, acc_rows, block_rows))
-  val writer = LazyModule(new StreamWriter(max_in_flight_reqs, dataBits, maxBytes, spad_w, aligned_to))
+  val writer = LazyModule(new StreamWriter(max_in_flight_reqs, dataBits, maxBytes, spad_w, aligned_to, inputType))
 
   // TODO make a cross-bar vs two separate ports a config option
   // id_node :=* reader.node
@@ -204,6 +206,8 @@ class Scratchpad[T <: Data: Arithmetic](
     writer.module.io.req.bits.vaddr := write_issue_q.io.deq.bits.vaddr
     writer.module.io.req.bits.data := writeData.bits
     writer.module.io.req.bits.status := write_issue_q.io.deq.bits.status
+    writer.module.io.req.bits.pool_en := !write_issue_q.io.deq.bits.pool_first_row
+    writer.module.io.req.bits.store_en := write_issue_q.io.deq.bits.store_en
 
     io.dma.write.resp.valid := false.B
     io.dma.write.resp.bits.cmd_id := write_dispatch_q.bits.cmd_id
@@ -270,7 +274,7 @@ class Scratchpad[T <: Data: Arithmetic](
             write_dispatch_q.ready := true.B
             write_issue_q.io.enq.valid := true.B
 
-            io.dma.write.resp.valid := true.B
+            io.dma.write.resp.valid := write_dispatch_q.bits.store_en
           }
         }.otherwise {
           bio.read.req.bits := DontCare
@@ -347,7 +351,7 @@ class Scratchpad[T <: Data: Arithmetic](
             write_dispatch_q.ready := true.B
             write_issue_q.io.enq.valid := true.B
 
-            io.dma.write.resp.valid := true.B
+            io.dma.write.resp.valid := write_dispatch_q.bits.store_en
           }
         }.otherwise {
           accumulator.io.read.req.bits.addr := DontCare
