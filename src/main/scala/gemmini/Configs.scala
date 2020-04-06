@@ -57,6 +57,31 @@ object GemminiConfigs {
     accType = SInt(32.W),
     pe_latency = 0
   )
+
+  val bfloatConfig = GemminiArrayConfig(
+    tileRows = 1,
+    tileColumns = 1,
+    meshRows = 16,
+    meshColumns = 16,
+    ld_queue_length = 8,
+    st_queue_length = 2,
+    ex_queue_length = 8,
+    rob_entries = 16,
+    sp_banks = 4,
+    acc_banks = 1,
+    sp_capacity = CapacityInKilobytes(256),
+    shifter_banks = 1, // TODO add separate parameters for left and up shifter banks
+    dataflow = Dataflow.BOTH,
+    acc_capacity = CapacityInKilobytes(64),
+    mem_pipeline = 1,
+    dma_maxbytes = 64, // TODO get this from cacheblockbytes
+    dma_buswidth = 128, // TODO get this from SystemBusKey
+    aligned_to = 1,
+    inputType = Float(8, 7)
+    outputType = Float(8, 7),
+    accType = Float(8, 7),
+    pe_latency = 0
+  )
 }
 
 /**
