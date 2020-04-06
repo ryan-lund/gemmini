@@ -102,6 +102,20 @@ class DefaultGemminiConfig extends Config((site, here, up) => {
 
 
 /**
+ * TODO: Documentation
+ */
+ class BfloatGemminiConfig extends Config((site, here, up) => {
+   case BuildRoCC =>(
+      (p: Parameters) => {
+        implicit val q = p
+        implicit val v = implicitly[ValName]
+        LazyModule(new Gemmini(OpcodeSet.custom3, GemminiConfigs.bfloatConfig))
+    }
+  )
+  case SystemBusKey => up(SystemBusKey).copy(beatBytes = 16)
+ })
+
+/**
  * Mixin which configures a smaller host processor for the systolic array.
    This mixin **replaces** the default host rocket (assuming a single core config).
    This is useful for hierarcical physical design purposes.
