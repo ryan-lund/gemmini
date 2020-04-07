@@ -77,9 +77,9 @@ object GemminiConfigs {
     dma_maxbytes = 64, // TODO get this from cacheblockbytes
     dma_buswidth = 128, // TODO get this from SystemBusKey
     aligned_to = 1,
-    inputType = Float(8, 7),
-    outputType = Float(8, 7),
-    accType = Float(8, 7),
+    inputType = Float(8, 7), // input bfloat16 (activations)
+    outputType = Float(8, 7), // output bfloat16 (weights, bias)
+    accType = Float(8, 24), // accumulate in fp32 (as per Cliff Young)
     pe_latency = 0
   )
 }

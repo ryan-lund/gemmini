@@ -96,7 +96,10 @@ case class GemminiArrayConfig[T <: Data : Arithmetic](
       dataType match {
         case dt: UInt => "uint64_t"
         case dt: SInt => "int64_t"
-        case dt: Float => "double"
+        case dt: Float => 
+          (dt.expWidth, dt.sigWidth) match {
+            case (8.7) => "float"
+            case _ => "double"
         case _ => throw new IllegalArgumentException(s"Data type $dataType is unknown")
       }
     }
