@@ -61,8 +61,8 @@ object GemminiConfigs {
   val bfloatConfig = GemminiArrayConfig(
     tileRows = 1,
     tileColumns = 1,
-    meshRows = 16,
-    meshColumns = 16,
+    meshRows = 8,
+    meshColumns = 8,
     ld_queue_length = 8,
     st_queue_length = 2,
     ex_queue_length = 8,
@@ -77,8 +77,8 @@ object GemminiConfigs {
     dma_maxbytes = 64, // TODO get this from cacheblockbytes
     dma_buswidth = 128, // TODO get this from SystemBusKey
     aligned_to = 1,
-    inputType = Float(8, 7), // input bfloat16 (activations)
-    outputType = Float(8, 7), // output bfloat16 (weights, bias)
+    inputType = Float(8, 8), // input bfloat16 (activations)
+    outputType = Float(8, 8), // output bfloat16 (weights, bias)
     accType = Float(8, 24), // accumulate in fp32 (as per Cliff Young)
     pe_latency = 0
   )
@@ -104,8 +104,8 @@ class DefaultGemminiConfig extends Config((site, here, up) => {
 /**
  * TODO: Documentation
  */
- class BfloatGemminiConfig extends Config((site, here, up) => {
-   case BuildRoCC =>(
+class BfloatGemminiConfig extends Config((site, here, up) => {
+   case BuildRoCC => Seq(
       (p: Parameters) => {
         implicit val q = p
         implicit val v = implicitly[ValName]
@@ -113,7 +113,7 @@ class DefaultGemminiConfig extends Config((site, here, up) => {
     }
   )
   case SystemBusKey => up(SystemBusKey).copy(beatBytes = 16)
- })
+})
 
 /**
  * Mixin which configures a smaller host processor for the systolic array.

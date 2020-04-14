@@ -70,7 +70,7 @@ case class GemminiArrayConfig[T <: Data : Arithmetic](
           (dt.expWidth, dt.sigWidth) match {
             case (8, 24) => (scala.Float.MinValue.toString, scala.Float.MaxValue.toString)
             case (11, 53) => (scala.Double.MinValue.toString, scala.Double.MaxValue.toString)
-            case (8, 7) => ("-3.38953139E38", "3.38953139E38") // TODO: cleanly wrap these values in some way?
+            case (8, 8) => ("-3.38953139E38", "3.38953139E38") // TODO: cleanly wrap these values in some way?
             case _ => throw new IllegalArgumentException(s"Only single- and double-precision IEEE754 floating point types as well as bfloat16 are currently supported")
           }
         case _ => throw new IllegalArgumentException(s"Data type $dataType is unknown")
@@ -85,7 +85,7 @@ case class GemminiArrayConfig[T <: Data : Arithmetic](
           (dt.expWidth, dt.sigWidth) match {
             case (8, 24) => "float"
             case (11, 53) => "double"
-            case (8, 7) => "bfloat"
+            case (8, 8) => "bfloat"
             case _ => throw new IllegalArgumentException(s"Only single- and double-precision IEEE754 floating point types as well as bfloat16 are currently supported")
           }
         case _ => throw new IllegalArgumentException(s"Data type $dataType is unknown")
@@ -98,8 +98,9 @@ case class GemminiArrayConfig[T <: Data : Arithmetic](
         case dt: SInt => "int64_t"
         case dt: Float => 
           (dt.expWidth, dt.sigWidth) match {
-            case (8.7) => "float"
+            case (8, 8) => "float"
             case _ => "double"
+          }
         case _ => throw new IllegalArgumentException(s"Data type $dataType is unknown")
       }
     }
