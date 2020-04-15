@@ -85,7 +85,7 @@ case class GemminiArrayConfig[T <: Data : Arithmetic](
           (dt.expWidth, dt.sigWidth) match {
             case (8, 24) => "float"
             case (11, 53) => "double"
-            case (8, 8) => "bfloat"
+            case (8, 8) => "bfloat16_t"
             case _ => throw new IllegalArgumentException(s"Only single- and double-precision IEEE754 floating point types as well as bfloat16 are currently supported")
           }
         case _ => throw new IllegalArgumentException(s"Data type $dataType is unknown")
@@ -147,7 +147,10 @@ case class GemminiArrayConfig[T <: Data : Arithmetic](
     header ++= s"typedef ${full_c_type(inputType)} full_t;\n\n"
 
     if (inputType.isInstanceOf[Float]) {
-      header ++= "#define ELEM_T_IS_FLOAT\n"
+      header ++= (inputType.expWidth, inputType.sigWidth) match {
+        case (8, 8) => "#define ELEM_T_IS_BFLOAT\n"
+        case _ => "#define ELEM_T_IS_FLOAT\n"
+      }
       header ++= s"#define ELEM_T_EXP_BITS ${inputType.asInstanceOf[Float].expWidth}\n"
       header ++= s"#define ELEM_T_SIG_BITS ${inputType.asInstanceOf[Float].sigWidth}\n"
       header ++= s"#define ACC_T_EXP_BITS ${accType.asInstanceOf[Float].expWidth}\n"
