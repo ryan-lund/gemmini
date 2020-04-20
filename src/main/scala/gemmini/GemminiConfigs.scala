@@ -115,7 +115,9 @@ case class GemminiArrayConfig[T <: Data : Arithmetic](
     header ++= s"#define $guard\n\n"
 
     header ++= s"#include <stdint.h>\n"
-    header ++= s"#include <limits.h>\n\n"
+    header ++= s"#include <limits.h>\n"
+
+    header ++= s"#include \"softfloat/source/include/softfloat.h\"\n\n "
 
     header ++= s"#define DIM ${tileColumns*meshColumns}\n"
     header ++= s"#define ADDR_LEN 32\n"
@@ -141,10 +143,15 @@ case class GemminiArrayConfig[T <: Data : Arithmetic](
     // Datatype of the systolic array
     val limits = limitsOfDataType(inputType)
     header ++= s"typedef ${c_type(inputType)} elem_t;\n"
-    header ++= s"elem_t elem_t_max = ${limits._2};\n"
-    header ++= s"elem_t elem_t_min = ${limits._1};\n"
     header ++= s"typedef ${c_type(accType)} acc_t;\n"
     header ++= s"typedef ${full_c_type(inputType)} full_t;\n\n"
+    if (inputType.isInstanceOf[Float] && inputType.asInstanceOf[Float].expWidth == 8 && inputType.asInstanceOf[Float].sigWidth == 8) {
+      header ++= s"acc_t elem_t_max = ${limits._2};\n"
+      header ++= s"acc_t elem_t_min = ${limits._1};\n"
+    } else {
+      header ++= s"elem_t elem_t_max = ${limits._2};\n"
+      header ++= s"elem_t elem_t_min = ${limits._1};\n"
+    }
 
     if (inputType.isInstanceOf[Float]) {
       header ++= ((inputType.asInstanceOf[Float].expWidth, inputType.asInstanceOf[Float].sigWidth) match {
