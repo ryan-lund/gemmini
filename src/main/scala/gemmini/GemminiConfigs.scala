@@ -117,7 +117,8 @@ case class GemminiArrayConfig[T <: Data : Arithmetic](
     header ++= s"#include <stdint.h>\n"
     header ++= s"#include <limits.h>\n"
 
-    header ++= s"#include \"softfloat/source/include/softfloat.h\"\n\n "
+    header ++= s"""#include "softfloat/source/include/softfloat.h" """
+    header ++= s"\n\n"
 
     header ++= s"#define DIM ${tileColumns*meshColumns}\n"
     header ++= s"#define ADDR_LEN 32\n"
