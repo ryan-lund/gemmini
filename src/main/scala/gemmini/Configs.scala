@@ -95,6 +95,31 @@ object GemminiConfigs {
     accType = Float(8, 24), // accumulate in fp32 (as per Cliff Young)
     pe_latency = 0
   )
+
+  val floatConfig = GemminiArrayConfig(
+    tileRows = 1,
+    tileColumns = 1,
+    meshRows = 8,
+    meshColumns = 8,
+    ld_queue_length = 8,
+    st_queue_length = 2,
+    ex_queue_length = 8,
+    rob_entries = 16,
+    sp_banks = 4,
+    acc_banks = 1,
+    sp_capacity = CapacityInKilobytes(256),
+    shifter_banks = 1, // TODO add separate parameters for left and up shifter banks
+    dataflow = Dataflow.BOTH,
+    acc_capacity = CapacityInKilobytes(64),
+    mem_pipeline = 1,
+    dma_maxbytes = 64, // TODO get this from cacheblockbytes
+    dma_buswidth = 128, // TODO get this from SystemBusKey
+    aligned_to = 1,
+    inputType = Float(8, 24), // input bfloat16 (activations)
+    outputType = Float(8, 24), // output bfloat16 (weights, bias)
+    accType = Float(11, 53), // accumulate in fp32 (as per Cliff Young)
+    pe_latency = 0
+  )
 }
 
 /**
@@ -123,6 +148,20 @@ class BfloatGemminiConfig extends Config((site, here, up) => {
         implicit val q = p
         implicit val v = implicitly[ValName]
         LazyModule(new Gemmini(OpcodeSet.custom3, GemminiConfigs.bfloatConfig))
+    }
+  )
+  case SystemBusKey => up(SystemBusKey).copy(beatBytes = 16)
+})
+
+/**
+ * TODO: Documentation
+ */
+class FloatGemminiConfig extends Config((site, here, up) => {
+   case BuildRoCC => Seq(
+      (p: Parameters) => {
+        implicit val q = p
+        implicit val v = implicitly[ValName]
+        LazyModule(new Gemmini(OpcodeSet.custom3, GemminiConfigs.floatConfig))
     }
   )
   case SystemBusKey => up(SystemBusKey).copy(beatBytes = 16)
