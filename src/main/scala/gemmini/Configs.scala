@@ -8,8 +8,7 @@ import freechips.rocketchip.tile.{BuildRoCC, OpcodeSet, XLen}
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.tile._
 import freechips.rocketchip.system._
-import gemmini.Arithmetic.SIntArithmetic
-
+import gemmini.Arithmetic._
 
 // ------------------
 // Multi-RoCC Support
@@ -33,7 +32,7 @@ class WithMultiRoCC extends Config((site, here, up) => {
 // -----------------------
 
 object GemminiConfigs {
-  // import Arithmetic.FloatArithmetic._
+  import Arithmetic.FloatArithmetic._
 
   val defaultConfig = GemminiArrayConfig[SInt, SInt](
   // val defaultConfig = GemminiArrayConfig[Float, Float](
@@ -71,7 +70,7 @@ object GemminiConfigs {
     pe_latency = 0
   )
 
-  val bfloatConfig = GemminiArrayConfig(
+  val bfloatConfig = GemminiArrayConfig[Float, Float](
     tileRows = 1,
     tileColumns = 1,
     meshRows = 8,
@@ -92,11 +91,14 @@ object GemminiConfigs {
     aligned_to = 1,
     inputType = Float(8, 8), // input bfloat16 (activations)
     outputType = Float(8, 8), // output bfloat16 (weights, bias)
-    accType = Float(8, 24), // accumulate in fp32 (as per Cliff Young)
+    accType = Float(8, 8), // accumulate in fp32 (as per Cliff Young), current into bf16 for scale args
+    mvin_scale_args = Some(MvinScaleArguments((t: Float, u: Float) => t * u, 0, Float(8, 8))),
+    mvin_scale_acc_args = Some(MvinScaleArguments((t: Float, u: Float) => t * u, 0, Float(8, 8))),
+    mvin_scale_shared = false,
     pe_latency = 0
   )
 
-  val floatConfig = GemminiArrayConfig(
+  val floatConfig = GemminiArrayConfig[Float, Float](
     tileRows = 1,
     tileColumns = 1,
     meshRows = 8,
@@ -115,9 +117,12 @@ object GemminiConfigs {
     dma_maxbytes = 64, // TODO get this from cacheblockbytes
     dma_buswidth = 128, // TODO get this from SystemBusKey
     aligned_to = 1,
-    inputType = Float(8, 24), // input bfloat16 (activations)
-    outputType = Float(8, 24), // output bfloat16 (weights, bias)
-    accType = Float(11, 53), // accumulate in fp32 (as per Cliff Young)
+    inputType = Float(8, 24), 
+    outputType = Float(8, 24), 
+    accType = Float(8, 24), // Accumulate into same size to satisfy MvinScaleArguments
+    mvin_scale_args = Some(MvinScaleArguments((t: Float, u: Float) => t * u, 0, Float(8, 24))),
+    mvin_scale_acc_args = Some(MvinScaleArguments((t: Float, u: Float) => t * u, 0, Float(8, 24))),
+    mvin_scale_shared = false,
     pe_latency = 0
   )
 }
