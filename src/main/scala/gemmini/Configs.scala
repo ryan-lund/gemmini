@@ -91,9 +91,9 @@ object GemminiConfigs {
     aligned_to = 1,
     inputType = Float(8, 8), // input bfloat16 (activations)
     outputType = Float(8, 8), // output bfloat16 (weights, bias)
-    accType = Float(8, 8), // accumulate in fp32 (as per Cliff Young), current into bf16 for scale args
-    mvin_scale_args = Some(MvinScaleArguments((t: Float, u: Float) => t * u, 0, Float(8, 8))),
-    mvin_scale_acc_args = Some(MvinScaleArguments((t: Float, u: Float) => t * u, 0, Float(8, 8))),
+    accType = Float(8, 24), // accumulate in fp32 (as per Cliff Young)
+    mvin_scale_args = None,
+    mvin_scale_acc_args = None,
     mvin_scale_shared = false,
     pe_latency = 0
   )
@@ -119,9 +119,11 @@ object GemminiConfigs {
     aligned_to = 1,
     inputType = Float(8, 24), 
     outputType = Float(8, 24), 
-    accType = Float(8, 24), // Accumulate into same size to satisfy MvinScaleArguments
-    mvin_scale_args = Some(MvinScaleArguments((t: Float, u: Float) => t * u, 0, Float(8, 24))),
-    mvin_scale_acc_args = Some(MvinScaleArguments((t: Float, u: Float) => t * u, 0, Float(8, 24))),
+    accType = Float(11, 53), // Accumulate into same size to satisfy MvinScaleArguments
+    //mvin_scale_args = Some(MvinScaleArguments((t: Float, u: Float) => t * u, 0, Float(8, 24))),
+    //mvin_scale_acc_args = Some(MvinScaleArguments((t: Float, u: Float) => t * u, 0, Float(8, 24))),
+    mvin_scale_args = None,
+    mvin_scale_acc_args = None,
     mvin_scale_shared = false,
     pe_latency = 0
   )
