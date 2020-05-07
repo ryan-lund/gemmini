@@ -6,7 +6,7 @@
 echo "Building gemmini-rocc-tests EE290 FireSim Workload"
 
 RDIR=$(pwd)
-FSIMSW=$(pwd)/../../../../../sw/firesim-software/
+FSIMSW=$(pwd)/../../../sims/firesim/sw/firesim-software/
 cd gemmini-rocc-tests
 ./build.sh
 cp -r build/* ../overlay/root/
